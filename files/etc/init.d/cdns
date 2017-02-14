@@ -1,0 +1,64 @@
+#!/bin/sh /etc/rc.common
+
+START=99
+STOP=15
+
+SERVICE_USE_PID=1
+SERVICE_WRITE_PID=1
+SERVICE_DAEMONIZE=1
+
+CONFIG=/etc/cdns/config.json
+
+get_args() {
+	config_get_bool enable $1 enable
+	config_get local_ip $1 local_ip '127.0.0.1'
+	config_get local_port $1 local_port '1153'
+	config_get server_ip1 $1 server_ip1 '8.8.4.4'
+	config_get server_ip2 $1 server_ip2 '8.8.8.8'
+	config_get timeout $1 timeout '10'
+	config_get set_dnsmasq $1 set_dnsmasq '0'
+}
+
+start_cdns() {
+	mkdir -p $(dirname $CONFIG)
+	echo '{"global": {"daemon": true,"log": "syslog:daemon","log_debug": false},"cdns": {' > $CONFIG
+	echo '"listen_ip": "'$local_ip'",' >> $CONFIG
+        echo '"listen_port": '$local_port',' >> $CONFIG
+        echo '"timeout": '$timeout',"servers": [' >> $CONFIG
+        echo '{"ip_port": "'$server_ip1'"},' >> $CONFIG
+        echo '{"ip_port": "'$server_ip2'"}' >> $CONFIG
+        echo ']}}' >> $CONFIG
+	ping -w 1 $local_ip && service_start /usr/bin/cdns -c $CONFIG || exit 1
+	
+	[ $set_dnsmasq = '1' ] && {
+		uci delete dhcp.@dnsmasq[0].server
+		uci add_list dhcp.@dnsmasq[0].server=$local_ip#$local_port
+		uci delete dhcp.@dnsmasq[0].resolvfile
+		uci set dhcp.@dnsmasq[0].noresolv=1
+		uci commit dhcp
+		/etc/init.d/dnsmasq restart
+	}
+}
+
+start() {
+	config_load cdns
+	config_foreach get_args cdns
+	[ "$enable" = 1 ] && start_cdns
+}
+
+stop() {
+	local dnsmasq=`uci get dhcp.@dnsmasq[0].server`
+	local dns_port=`uci get cdns.@cdns[0].local_port`
+	local dns_ip=`uci get cdns.@cdns[0].local_ip`
+	echo $dns_ip#$dns_port
+	echo $dnsmasq
+	[ "$dnsmasq" = "$dns_ip#$dns_port" ] && {
+		echo hahaha
+		uci del_list dhcp.@dnsmasq[0].server=$dns_ip#$dns_port
+		uci set dhcp.@dnsmasq[0].resolvfile=/tmp/resolv.conf.auto
+		uci delete dhcp.@dnsmasq[0].noresolv
+		uci commit dhcp
+		/etc/init.d/dnsmasq restart	
+	}
+	killall cdns
+}
