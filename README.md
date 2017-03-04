@@ -1,4 +1,4 @@
-OpenWrt LuCI for CDNS
+CDNS LuCI for OpenWrt/LEDE
 ===
 forked from https://github.com/ghostry/openwrt-gmod/tree/master/luci/luci-app-cdns 为方便OpenWrt SDK编译而设立的repo
 
@@ -41,6 +41,11 @@ make menuconfig
 # 开始编译
 make package/luci-app-cdns/compile V=99
 ```
+
+软件截图
+---
+![](https://github.com/AlexZhuo/BreakwallOpenWrt/raw/master/screenshots/cdns.png)
+
 [O]: http://www.right.com.cn/forum/thread-198649-1-1.html
 [1]: https://github.com/AlexZhuo/openwrt-cdns
 [2]: https://github.com/AlexZhuo/openwrt-cdns
